@@ -171,6 +171,11 @@ The solution employs a coordinated multi-agent architecture with **one orchestra
 
 ---
 
+## Refactoring Notes
+
+- Improved overall readability
+- Minor cleanup for better maintainability
+
 ## 🛠️ Technology Stack
 
 | Component | Technology | Purpose |
