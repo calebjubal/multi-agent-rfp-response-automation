@@ -1,5 +1,7 @@
 # AI-Powered Multi-Agent System for RFP Response Automation
 
+Project architecture overview added.
+
 <div align="center">
 
 [![Python Version](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
