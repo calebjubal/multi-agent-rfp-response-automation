@@ -2,8 +2,7 @@
 # DATA MODELS (Pydantic)
 # ============================================================
 from pydantic import BaseModel
-
-
+from typing import List, Optional, Dict, Any
 
 class OEMProduct(BaseModel):
     sku: str
