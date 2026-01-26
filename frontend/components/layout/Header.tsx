@@ -36,7 +36,12 @@ export default function Header({ title, subtitle }) {
       .slice(0, 2);
   };
 
-  const getRoleBadge = (role) => {
+  const getRoleBadge = (
+    role
+  ): {
+    label: string;
+    variant: "default" | "secondary" | "outline";
+  } => {
     switch (role) {
       case "admin":
         return { label: "Admin", variant: "default" };

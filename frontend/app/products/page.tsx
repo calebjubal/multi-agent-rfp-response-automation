@@ -703,7 +703,7 @@ export default function ProductsPage() {
                     {Object.entries(product.specifications).slice(0, 4).map(([key, value]) => (
                       <div key={key} className="text-xs">
                         <span className="text-muted-foreground capitalize">{key}: </span>
-                        <span className="text-foreground">{value}</span>
+                        <span className="text-foreground">{String(value)}</span>
                       </div>
                     ))}
                   </div>

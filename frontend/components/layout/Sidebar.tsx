@@ -56,10 +56,9 @@ const navItems = [
   },
   {
     title: "Chat Assistant",
-    href: "/chat-window",
+    href: "/chat",
     icon: MessageSquare,
     requiresAuth: true,
-    openInNewWindow: true,
   },
   {
     title: "History",
@@ -97,14 +96,6 @@ export default function Sidebar() {
   const canAccessItem = (item) => {
     if (!item.requiresAuth) return true;
     return isAuthenticated;
-  };
-
-  const handleNavClick = (item) => {
-    if (!item.openInNewWindow) return;
-    if (!canAccessItem(item)) {
-      return;
-    }
-    window.open(item.href, "_blank", "noopener,noreferrer");
   };
 
   return (
@@ -207,60 +198,31 @@ export default function Sidebar() {
                     )}
                   </div>
                 ) : (
-                  item.openInNewWindow ? (
-                    <button
-                      type="button"
-                      onClick={() => handleNavClick(item)}
-                      className={cn(
-                        "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all group",
-                        isActive(item.href)
-                          ? "bg-sidebar-accent text-sidebar-primary"
-                          : "text-sidebar-foreground hover:bg-sidebar-accent",
-                        !canAccess && "opacity-60"
-                      )}
-                    >
-                      <item.icon className="w-5 h-5 flex-shrink-0" />
-                      {!collapsed && (
-                        <>
-                          <span className="flex-1 font-medium">{item.title}</span>
-                          {!canAccess && (
-                            <Lock className="w-3.5 h-3.5 text-muted-foreground" />
-                          )}
-                          {item.badge && canAccess && (
-                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-normal">
-                              {item.badge}
-                            </Badge>
-                          )}
-                        </>
-                      )}
-                    </button>
-                  ) : (
-                    <Link
-                      href={canAccess ? item.href : "/login"}
-                      className={cn(
-                        "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all group",
-                        isActive(item.href)
-                          ? "bg-sidebar-accent text-sidebar-primary"
-                          : "text-sidebar-foreground hover:bg-sidebar-accent",
-                        !canAccess && "opacity-60"
-                      )}
-                    >
-                      <item.icon className="w-5 h-5 flex-shrink-0" />
-                      {!collapsed && (
-                        <>
-                          <span className="flex-1 font-medium">{item.title}</span>
-                          {!canAccess && (
-                            <Lock className="w-3.5 h-3.5 text-muted-foreground" />
-                          )}
-                          {item.badge && canAccess && (
-                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-normal">
-                              {item.badge}
-                            </Badge>
-                          )}
-                        </>
-                      )}
-                    </Link>
-                  )
+                  <Link
+                    href={canAccess ? item.href : "/login"}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all group",
+                      isActive(item.href)
+                        ? "bg-sidebar-accent text-sidebar-primary"
+                        : "text-sidebar-foreground hover:bg-sidebar-accent",
+                      !canAccess && "opacity-60"
+                    )}
+                  >
+                    <item.icon className="w-5 h-5 flex-shrink-0" />
+                    {!collapsed && (
+                      <>
+                        <span className="flex-1 font-medium">{item.title}</span>
+                        {!canAccess && (
+                          <Lock className="w-3.5 h-3.5 text-muted-foreground" />
+                        )}
+                        {item.badge && canAccess && (
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-normal">
+                            {item.badge}
+                          </Badge>
+                        )}
+                      </>
+                    )}
+                  </Link>
                 )}
               </li>
             );

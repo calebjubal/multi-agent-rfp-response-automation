@@ -1,9 +1,24 @@
 "use client";
 
+import type { ComponentType } from "react";
 import { cn } from "@/lib/utils";
 import { TrendingUp, TrendingDown } from "lucide-react";
 
-export default function StatsCard({ title, value, subtitle, icon: Icon, trend, className }) {
+type StatsCardTrend = {
+  positive: boolean;
+  value: string;
+};
+
+type StatsCardProps = {
+  title: string;
+  value: string | number;
+  subtitle?: string;
+  icon?: ComponentType<{ className?: string }>;
+  trend?: StatsCardTrend;
+  className?: string;
+};
+
+export default function StatsCard({ title, value, subtitle, icon: Icon, trend, className }: StatsCardProps) {
   return (
     <div
       className={cn(
