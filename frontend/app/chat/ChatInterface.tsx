@@ -1,16 +1,19 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import styles from "./ChatInterface.module.css";
 
 export default function ChatInterface() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [sessionId] = useState(() => `session_${Date.now()}`);
+  const [sessionId, setSessionId] = useState(null);
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
+    setSessionId(`session_${Date.now()}`);
     setMessages([
       {
         role: "assistant",
@@ -40,7 +43,10 @@ export default function ChatInterface() {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:8000/api/chat", {
+      if (!sessionId) {
+        throw new Error("Session not ready");
+      }
+      const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -49,13 +55,17 @@ export default function ChatInterface() {
         }),
       });
 
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const errorMessage = data?.detail || data?.message || "Request failed.";
+        throw new Error(errorMessage);
+      }
 
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          message: data.response,
+          message: data.response || "No response received from the backend.",
           timestamp: data.timestamp,
           workflow_state: data.workflow_state,
         },
@@ -96,7 +106,9 @@ export default function ChatInterface() {
           <p>AI-powered RFP automation conversation</p>
         </div>
         <div className={styles.sessionInfo}>
-          <span className={styles.sessionBadge}>Session: {sessionId.slice(-8)}</span>
+          {sessionId && (
+            <span className={styles.sessionBadge}>Session: {sessionId.slice(-8)}</span>
+          )}
         </div>
       </header>
 
@@ -105,15 +117,25 @@ export default function ChatInterface() {
           <div key={idx} className={`${styles.message} ${msg.role === "user" ? styles.user : styles.assistant}`}>
             <div className={styles.messageAvatar}>{msg.role === "user" ? "👤" : "🤖"}</div>
             <div className={styles.messageContent}>
-              <div className={styles.messageText}>
-                {msg.message.split("\n").map((line, i) => (
-                  <React.Fragment key={i}>
-                    {line}
-                    {i < msg.message.split("\n").length - 1 && <br />}
-                  </React.Fragment>
-                ))}
+              {msg.role === "assistant" ? (
+                <div className={styles.messageText}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {msg.message || ""}
+                  </ReactMarkdown>
+                </div>
+              ) : (
+                <div className={styles.messageText}>
+                  {(msg.message || "").split("\n").map((line, i) => (
+                    <React.Fragment key={i}>
+                      {line}
+                      {i < (msg.message || "").split("\n").length - 1 && <br />}
+                    </React.Fragment>
+                  ))}
+                </div>
+              )}
+              <div className={styles.messageTime}>
+                {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : ""}
               </div>
-              <div className={styles.messageTime}>{new Date(msg.timestamp).toLocaleTimeString()}</div>
             </div>
           </div>
         ))}

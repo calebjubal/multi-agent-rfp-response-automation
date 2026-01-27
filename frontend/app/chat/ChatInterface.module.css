@@ -85,6 +85,90 @@
   line-height: 1.4;
 }
 
+.messageText h1 {
+  font-size: 18px;
+  margin: 8px 0;
+}
+
+.messageText h2 {
+  font-size: 16px;
+  margin: 8px 0;
+}
+
+.messageText h3 {
+  font-size: 15px;
+  margin: 8px 0;
+}
+
+.messageText p {
+  margin: 6px 0;
+}
+
+.messageText ul {
+  margin: 6px 0 6px 18px;
+  padding: 0;
+}
+
+.messageText li {
+  margin: 4px 0;
+}
+
+.messageText table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 13px;
+}
+
+.messageText th,
+.messageText td {
+  border: 1px solid hsl(var(--border));
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.messageText th {
+  background: hsl(var(--secondary));
+  font-weight: 600;
+}
+
+.messageText code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  background: hsl(var(--secondary) / 0.5);
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.messageText pre {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: hsl(var(--secondary));
+  border: 1px solid hsl(var(--border));
+  overflow-x: auto;
+}
+
+.messageText pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.messageText a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.messageText a:hover {
+  color: hsl(var(--primary) / 0.8);
+  text-decoration: none;
+  background-color: hsl(var(--primary) / 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
 .messageTime {
   margin-top: 8px;
   font-size: 11px;
