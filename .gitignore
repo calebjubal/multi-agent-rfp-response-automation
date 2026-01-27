@@ -6,7 +6,8 @@ __pycache__
 
 # dependencies
 frontend/node_modules
-
+data/reports/*.pdf
+frontend/next-env.d.ts
 # next.js
 frontend/.next/
 frontend/out/
