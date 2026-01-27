@@ -1,140 +1,253 @@
-import json
-import os
-from typing import List, Dict, Any
-from datetime import datetime, timedelta
 from langchain.tools import tool
+from typing import List, Dict
+from datetime import datetime, timedelta
+import os
+import json
 
-
-def load_mock_rfps() -> List[Dict[str, Any]]:
-    """Load mock RFPs from JSON file"""
-    # Try multiple paths to find the mock data
-    possible_paths = [
-        # From tools.py location: go up 3 levels to project root
-        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'data', 'mock_rfps.json'),
-        # From current working directory
-        os.path.join(os.getcwd(), 'data', 'mock_rfps.json'),
-        # Relative path
-        'data/mock_rfps.json',
-    ]
-
-    for json_path in possible_paths:
-        try:
-            with open(json_path, 'r') as f:
-                return json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            continue
-
+# Load sample RFPs from data folder
+def load_sample_rfps():
+    data_path = os.path.join(os.path.dirname(__file__), '../../data/rfps.json')
+    if os.path.exists(data_path):
+        with open(data_path, 'r') as f:
+            return json.load(f)
     return []
 
-
-@tool
-def scan_rfps_tool(keywords: List[str], days_ahead: int = 90) -> List[Dict[str, Any]]:
-    """Scan for RFPs matching keywords and due within specified timeframe"""
-    mock_rfps = load_mock_rfps()
-    
-    if not mock_rfps:
-        return []
-    
-    keywords_lower = [k.lower() for k in keywords]
-    filtered_rfps = []
-    for rfp in mock_rfps:
-        matches = any(
-            keyword in str(rfp.get('title', '')).lower() or
-            keyword in str(rfp.get('description', '')).lower() or
-            keyword in str(rfp.get('category', '')).lower()
-            for keyword in keywords_lower
-        )
-        if matches:
-            filtered_rfps.append(rfp)
-    
-    cutoff_date = datetime.now() + timedelta(days=days_ahead)
-    date_filtered_rfps = []
-    for rfp in filtered_rfps:
-        try:
-            due_date = datetime.strptime(rfp['due_date'], "%Y-%m-%d")
-            if due_date <= cutoff_date:
-                days_remaining = (due_date - datetime.now()).days
-                rfp['days_remaining'] = max(days_remaining, 0)
-                date_filtered_rfps.append(rfp)
-        except (KeyError, ValueError):
-            continue
-    
-    return date_filtered_rfps
+SAMPLE_RFPS = load_sample_rfps()
 
 
-@tool
-def qualify_rfp_tool(rfp: Dict[str, Any], criteria: Dict[str, Any]) -> Dict[str, Any]:
-    """Qualify an RFP based on business criteria and assign a score"""
-    qualification = {
-        "rfp_id": rfp['rfp_id'],
-        "qualified": True,
-        "score": 0,
-        "reasons": []
-    }
+@tool("scan_rfp_websites")
+def scan_rfp_websites(urls: str = "all") -> str:
+    """
+    Scan predefined URLs/websites to identify RFPs.
+    Returns a list of RFPs found with basic details.
+    Input: 'all' to scan all sources, or comma-separated URLs.
+    """
+    today = datetime.now()
+    three_months_later = today + timedelta(days=90)
     
-    days_remaining = rfp.get('days_remaining', 0)
-    min_days = criteria.get('min_days_remaining', 7)
+    upcoming_rfps = []
+    for rfp in SAMPLE_RFPS:
+        deadline = datetime.strptime(rfp["submission_deadline"], "%Y-%m-%d")
+        if today <= deadline <= three_months_later:
+            upcoming_rfps.append({
+                "id": rfp["id"],
+                "title": rfp["title"],
+                "client": rfp["client"],
+                "submission_deadline": rfp["submission_deadline"],
+                "estimated_value": rfp["estimated_value"],
+                "url": rfp.get("url", "N/A"),
+                "days_remaining": (deadline - today).days,
+            })
     
-    if days_remaining < min_days:
-        qualification['qualified'] = False
-        qualification['reasons'].append(f"Insufficient time: {days_remaining} days (need {min_days}+)")
-    elif days_remaining < 14:
-        qualification['score'] += 15
-        qualification['reasons'].append(f"Tight timeline: {days_remaining} days")
-    elif days_remaining < 30:
-        qualification['score'] += 25
-        qualification['reasons'].append(f"Adequate time: {days_remaining} days")
-    else:
-        qualification['score'] += 30
-        qualification['reasons'].append(f"Good timeline: {days_remaining} days")
+    if not upcoming_rfps:
+        return "No RFPs found due in the next 3 months."
     
-    tender_value = int(rfp.get('tender_value', 0))
-    min_value = criteria.get('min_tender_value', 1000000)
+    result = f"Found {len(upcoming_rfps)} RFPs due in the next 3 months:\n\n"
+    for rfp in sorted(upcoming_rfps, key=lambda x: x["days_remaining"]):
+        result += f"- **{rfp['id']}**: {rfp['title']}\n"
+        result += f"  Client: {rfp['client']}\n"
+        result += f"  Deadline: {rfp['submission_deadline']} ({rfp['days_remaining']} days remaining)\n"
+        result += f"  Estimated Value: {rfp['estimated_value']}\n\n"
     
-    if tender_value < min_value:
-        qualification['score'] += 10
-        qualification['reasons'].append(f"Low value: ₹{tender_value:,}")
-    elif tender_value < min_value * 2:
-        qualification['score'] += 25
-        qualification['reasons'].append(f"Meets minimum: ₹{tender_value:,}")
-    elif tender_value < min_value * 5:
-        qualification['score'] += 35
-        qualification['reasons'].append(f"Good value: ₹{tender_value:,}")
-    else:
-        qualification['score'] += 40
-        qualification['reasons'].append(f"High value: ₹{tender_value:,}")
-    
-    preferred_locations = criteria.get('preferred_locations', [])
-    if not preferred_locations:
-        qualification['score'] += 30
-        qualification['reasons'].append(f"Location: {rfp.get('location', 'N/A')}")
-    else:
-        location_match = any(loc.lower() in str(rfp.get('location', '')).lower() for loc in preferred_locations)
-        if location_match:
-            qualification['score'] += 30
-            qualification['reasons'].append(f"Preferred location: {rfp.get('location')}")
-        else:
-            qualification['score'] += 10
-            qualification['reasons'].append(f"Non-preferred location: {rfp.get('location')}")
-    
-    qualification['qualified'] = qualification['score'] >= 60
-    
-    return qualification
+    return result
 
 
-@tool
-def prioritize_rfps_tool(rfps: List[Dict[str, Any]], qualifications: List[Dict[str, Any]], top_n: int = 5) -> List[Dict[str, Any]]:
-    """Prioritize qualified RFPs and return top N"""
-    qual_lookup = {q['rfp_id']: q for q in qualifications}
+@tool("get_rfp_details")
+def get_rfp_details(rfp_id: str) -> str:
+    """
+    Get detailed information about a specific RFP including scope of supply,
+    technical specifications, and testing requirements.
+    Input: RFP ID (e.g., 'TOT-2026-001')
+    """
+    rfp = next((r for r in SAMPLE_RFPS if r["id"] == rfp_id), None)
     
+    if not rfp:
+        return f"RFP with ID '{rfp_id}' not found."
+    
+    result = f"# RFP Details: {rfp['id']}\n\n"
+    result += f"**Title:** {rfp['title']}\n"
+    result += f"**Client:** {rfp['client']}\n"
+    result += f"**Submission Deadline:** {rfp['submission_deadline']}\n"
+    result += f"**Estimated Value:** {rfp['estimated_value']}\n\n"
+    
+    if "scope_of_supply" in rfp:
+        result += "## Scope of Supply\n"
+        for item in rfp["scope_of_supply"]:
+            result += f"- {item['item']} - Qty: {item['quantity']}\n"
+    
+    if "technical_specs" in rfp:
+        result += "\n## Technical Specifications\n"
+        for key, value in rfp["technical_specs"].items():
+            if isinstance(value, list):
+                result += f"- {key.replace('_', ' ').title()}: {', '.join(value)}\n"
+            else:
+                result += f"- {key.replace('_', ' ').title()}: {value}\n"
+    
+    if "testing_requirements" in rfp:
+        result += "\n## Testing Requirements\n"
+        for test in rfp["testing_requirements"]:
+            result += f"- {test}\n"
+    
+    return result
+
+
+@tool("extract_rfp_summary_for_technical")
+def extract_rfp_summary_for_technical(rfp_id: str) -> str:
+    """
+    Extract and format RFP product requirements for the Technical Agent.
+    Focuses on scope of supply and technical specifications.
+    Input: RFP ID (e.g., 'TOT-2026-001')
+    """
+    rfp = next((r for r in SAMPLE_RFPS if r["id"] == rfp_id), None)
+    
+    if not rfp:
+        return f"RFP with ID '{rfp_id}' not found."
+    
+    result = f"# Technical Summary for {rfp['id']}\n\n"
+    result += f"**Project:** {rfp['title']}\n"
+    result += f"**Client:** {rfp['client']}\n\n"
+    
+    if "scope_of_supply" in rfp:
+        result += "## Products Required (Scope of Supply)\n"
+        result += "| # | Product Description | Quantity |\n"
+        result += "|---|---------------------|----------|\n"
+        for i, item in enumerate(rfp["scope_of_supply"], 1):
+            result += f"| {i} | {item['item']} | {item['quantity']} |\n"
+    
+    if "technical_specs" in rfp:
+        result += "\n## Technical Specifications to Match\n"
+        for key, value in rfp["technical_specs"].items():
+            if isinstance(value, list):
+                result += f"- **{key.replace('_', ' ').title()}:** {', '.join(value)}\n"
+            else:
+                result += f"- **{key.replace('_', ' ').title()}:** {value}\n"
+    
+    return result
+
+
+@tool("extract_rfp_summary_for_pricing")
+def extract_rfp_summary_for_pricing(rfp_id: str) -> str:
+    """
+    Extract and format RFP testing requirements for the Pricing Agent.
+    Focuses on testing and acceptance test requirements.
+    Input: RFP ID (e.g., 'TOT-2026-001')
+    """
+    rfp = next((r for r in SAMPLE_RFPS if r["id"] == rfp_id), None)
+    
+    if not rfp:
+        return f"RFP with ID '{rfp_id}' not found."
+    
+    result = f"# Pricing Summary for {rfp['id']}\n\n"
+    result += f"**Project:** {rfp['title']}\n"
+    result += f"**Client:** {rfp['client']}\n\n"
+    
+    # Load test pricing
+    test_pricing_path = os.path.join(os.path.dirname(__file__), '../../data/test_pricing.json')
+    test_pricing = {}
+    if os.path.exists(test_pricing_path):
+        with open(test_pricing_path, 'r') as f:
+            test_pricing = json.load(f)
+    
+    if "testing_requirements" in rfp:
+        result += "## Testing & Acceptance Requirements\n"
+        result += "| # | Test Type | Estimated Cost | Duration |\n"
+        result += "|---|-----------|----------------|----------|\n"
+        
+        total_test_cost = 0
+        for i, test in enumerate(rfp["testing_requirements"], 1):
+            if test in test_pricing:
+                cost = test_pricing[test]["price"]
+                duration = test_pricing[test]["duration_days"]
+                total_test_cost += cost
+                result += f"| {i} | {test} | ₹{cost:,} | {duration} days |\n"
+            else:
+                result += f"| {i} | {test} | TBD | TBD |\n"
+        
+        result += f"\n**Estimated Total Testing Cost:** ₹{total_test_cost:,}\n"
+    
+    if "scope_of_supply" in rfp:
+        result += "\n## Quantities for Pricing\n"
+        for item in rfp["scope_of_supply"]:
+            result += f"- {item['item']}: {item['quantity']}\n"
+    
+    return result
+
+
+def qualify_rfp_tool(rfp_data: dict) -> bool:
+    """Helper function to qualify RFPs based on business criteria"""
+    try:
+        # Basic qualification criteria
+        if not rfp_data.get("estimated_value"):
+            return False
+        
+        # Check deadline is reasonable (at least 7 days away)
+        deadline_str = rfp_data.get("submission_deadline", "")
+        if deadline_str:
+            deadline = datetime.strptime(deadline_str, "%Y-%m-%d")
+            days_remaining = (deadline - datetime.now()).days
+            if days_remaining < 7:
+                return False
+        
+        return True
+    except Exception:
+        return False
+
+
+def prioritize_rfps_tool(rfps: List[dict]) -> List[dict]:
+    """Helper function to prioritize RFPs based on scoring criteria"""
     scored_rfps = []
+    
     for rfp in rfps:
-        qual = qual_lookup.get(rfp['rfp_id'])
-        if qual and qual['qualified']:
-            rfp['priority_score'] = qual['score']
-            rfp['qualification'] = qual
-            scored_rfps.append(rfp)
+        score = 0
+        
+        # Score based on value (simplified)
+        value_str = rfp.get("estimated_value", "₹0")
+        try:
+            # Extract numeric value
+            import re
+            value_match = re.search(r'(\d+(?:\.\d+)?)', value_str)
+            if value_match:
+                value = float(value_match.group(1))
+                if "Cr" in value_str:
+                    value *= 10000000
+                elif "L" in value_str or "Lakh" in value_str:
+                    value *= 100000
+                
+                # Higher value = higher score (max 50 points)
+                if value >= 50000000:
+                    score += 50
+                elif value >= 10000000:
+                    score += 40
+                elif value >= 5000000:
+                    score += 30
+                else:
+                    score += 20
+        except:
+            pass
+        
+        # Score based on deadline urgency (max 50 points)
+        deadline_str = rfp.get("submission_deadline", "")
+        if deadline_str:
+            try:
+                deadline = datetime.strptime(deadline_str, "%Y-%m-%d")
+                days_remaining = (deadline - datetime.now()).days
+                if 30 <= days_remaining <= 60:
+                    score += 50  # Optimal window
+                elif 15 <= days_remaining < 30:
+                    score += 40
+                elif 60 < days_remaining <= 90:
+                    score += 35
+                else:
+                    score += 20
+            except:
+                pass
+        
+        scored_rfps.append({
+            **rfp,
+            "priority_score": score
+        })
     
-    scored_rfps.sort(key=lambda x: x['priority_score'], reverse=True)
+    # Sort by score (descending)
+    scored_rfps.sort(key=lambda x: x["priority_score"], reverse=True)
     
-    return scored_rfps[:top_n]
+    return scored_rfps[:5]  # Return top 5
