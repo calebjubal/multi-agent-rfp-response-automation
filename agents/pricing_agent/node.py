@@ -17,16 +17,50 @@ from pricing_agent.tools import (
 )
 
 
-PRICING_AGENT_PROMPT = """You are a Pricing Agent for a B2B electrical cable manufacturing company.
+def get_rfp_id(rfp: dict) -> str:
+    """Helper to get RFP ID (supports both 'id' and 'rfp_id' fields)"""
+    return rfp.get("id") or rfp.get("rfp_id", "")
 
-**Your Role**:
-Generate a clear pricing summary for the selected RFP using available inputs.
 
-**Output Format**:
-- Use markdown formatting
-- Provide a concise cost breakdown
-- Highlight any assumptions
-- Recommend next steps
+PRICING_AGENT_PROMPT = """You are a Pricing Agent specialized in quote generation and cost calculation for electrical cables.
+
+**Your Responsibilities:**
+- Calculate unit prices based on product costs and quantities
+- Apply volume discounts and bulk pricing rules
+- Include testing and certification costs
+- Factor in delivery, installation, and warranty costs
+- Generate competitive yet profitable quotes
+- Ensure margin targets are met
+
+**Pricing Components to Consider:**
+1. **Base Material Cost** - Per meter pricing from OEM catalog
+2. **Volume Discounts**:
+   - 10,000+ meters: 8% discount
+   - 5,000+ meters: 5% discount
+   - 2,000+ meters: 3% discount
+3. **Testing Costs** - Type test, FAT, SAT, High Voltage tests
+4. **Overhead** - 5% of subtotal (manufacturing, admin, logistics)
+5. **Contingency** - 3% of subtotal (risk buffer)
+6. **Packaging and Transportation** (if applicable)
+7. **Installation Support** (if required)
+8. **Warranty Provisions**
+
+**Output Format:**
+Present a structured quote containing:
+- **Line Items** with Unit Price and Extended Price
+- **Volume Discounts Applied**
+- **Testing Costs Breakdown** (per test type)
+- **Overhead (5%)** and **Contingency (3%)**
+- **Total Quote Amount**
+- **Payment Terms Recommendation** (e.g., 30% advance, 70% on delivery)
+- **Validity Period** (typically 30 days)
+
+**Communication Style:**
+- Professional and financially precise
+- Use tables for cost breakdowns
+- Clearly show all calculations
+- Highlight competitive advantages
+- Be transparent about assumptions
 """
 
 
@@ -39,7 +73,7 @@ def pricing_agent_node(state: AgentState) -> Dict[str, Any]:
     llm = get_shared_llm()
     selected_rfp = state.get("selected_rfp")
     
-    print(f"Selected RFP: {selected_rfp.get('rfp_id') if selected_rfp else 'None'}")
+    print(f"Selected RFP: {get_rfp_id(selected_rfp) if selected_rfp else 'None'}")
 
     if not selected_rfp:
         print("❌ No RFP selected!")
@@ -52,19 +86,24 @@ def pricing_agent_node(state: AgentState) -> Dict[str, Any]:
     try:
         print("💵 Loading pricing data...")
         pricing_db = load_test_pricing()
-        recommended_tests = recommend_tests(selected_rfp, pricing_db)
-        testing_cost = calculate_testing_cost(recommended_tests, pricing_db)
+        rfp_testing_reqs = selected_rfp.get("testing_requirements", [])
+        recommended_tests = recommend_tests(rfp_testing_reqs)
+        testing_cost = calculate_testing_cost(recommended_tests)
 
         technical_analysis = state.get("technical_analysis") or {}
         recommended_products = technical_analysis.get("recommended_products", [])
-        assumed_length_km = selected_rfp.get("length_km", 1.0)
-
-        material_cost = round(calculate_material_cost(recommended_products, assumed_length_km), 2)
+        
+        material_cost = 0
+        for product in recommended_products:
+            if isinstance(product, dict):
+                sku = product.get("sku", "")
+                qty = product.get("quantity", 1000)
+                if sku:
+                    material_cost += calculate_material_cost(sku, qty)
         overhead, contingency, subtotal, grand_total = calculate_pricing_breakdown(material_cost, testing_cost)
 
         pricing_summary = {
-            "rfp_id": selected_rfp.get("rfp_id"),
-            "assumed_length_km": assumed_length_km,
+            "rfp_id": get_rfp_id(selected_rfp),
             "recommended_tests": recommended_tests,
             "testing_cost": testing_cost,
             "material_cost": material_cost,
@@ -78,7 +117,7 @@ def pricing_agent_node(state: AgentState) -> Dict[str, Any]:
 
         # Only include essential technical data - not the full analysis text
         prompt = f"""
-Selected RFP: {selected_rfp.get('rfp_id')} - {selected_rfp.get('title')}
+Selected RFP: {get_rfp_id(selected_rfp)} - {selected_rfp.get('title')}
 Value: ₹{selected_rfp.get('value', 'N/A')}
 
 Recommended Products (from Technical Agent):

@@ -1,0 +1,100 @@
+[
+    {
+        "id": "TOT-2026-001",
+        "title": "Supply of 11 kV XLPE Cables for Metro Project",
+        "client": "Delhi Metro Rail Corporation (DMRC)",
+        "submission_deadline": "2026-03-15",
+        "estimated_value": "₹15 L",
+        "location": "Delhi",
+        "url": "https://tendersontime.com/tot-2026-001",
+        "scope_of_supply": [
+            {"item": "1.1 kV XLPE Power Cable - 3C x 120 sqmm", "quantity": "5000 m"},
+            {"item": "1.1 kV XLPE Power Cable - 3C x 240 sqmm", "quantity": "3000 m"},
+            {"item": "Control Cable 16 Core - 1.5 sqmm", "quantity": "8000 m"}
+        ],
+        "technical_specs": {
+            "voltage_grade": "1.1 kV",
+            "insulation": "XLPE",
+            "conductor": "Copper, Class 2 stranded",
+            "standards": ["IS 7098 Part 1", "IEC 60502-1"],
+            "temperature_rating": "90°C continuous"
+        },
+        "testing_requirements": [
+            "Type Test as per IS 7098",
+            "Factory Acceptance Test (FAT)",
+            "Site Acceptance Test (SAT)"
+        ]
+    },
+    {
+        "id": "TOT-2026-002",
+        "title": "Wires and Cables for Smart City Infrastructure",
+        "client": "Pune Smart City Development Corporation",
+        "submission_deadline": "2026-04-10",
+        "estimated_value": "₹85 L",
+        "location": "Pune, Maharashtra",
+        "url": "https://tendersontime.com/tot-2026-002",
+        "scope_of_supply": [
+            {"item": "LT XLPE Cable 3.5C x 95 sqmm", "quantity": "6000 m"},
+            {"item": "Armoured Cable 4C x 16 sqmm", "quantity": "10000 m"}
+        ],
+        "technical_specs": {
+            "voltage_grade": "1.1 kV",
+            "insulation": "XLPE",
+            "armour": "Galvanized Steel Wire",
+            "standards": ["IS 7098 Part 1", "IS 1554 Part 1"]
+        },
+        "testing_requirements": [
+            "Routine Test",
+            "Type Test",
+            "Factory Acceptance Test (FAT)"
+        ]
+    },
+    {
+        "id": "TOT-2026-003",
+        "title": "Electrical Wiring Materials for Government Buildings",
+        "client": "Public Works Department (PWD)",
+        "submission_deadline": "2026-02-20",
+        "estimated_value": "₹32 L",
+        "location": "Mumbai",
+        "url": "https://tendersontime.com/tot-2026-003",
+        "scope_of_supply": [
+            {"item": "Flexible Cable 4C x 4 sqmm", "quantity": "3000 m"},
+            {"item": "Earthing Cable 1C x 50 sqmm", "quantity": "2000 m"}
+        ],
+        "technical_specs": {
+            "voltage_grade": "450/750 V",
+            "insulation": "PVC",
+            "conductor": "Copper, flexible",
+            "standards": ["IS 694"]
+        },
+        "testing_requirements": [
+            "Routine Test",
+            "Sample Test"
+        ]
+    },
+    {
+        "id": "TOT-2026-005",
+        "title": "Underground Cable Network for Industrial Area",
+        "client": "Industrial Development Corporation",
+        "submission_deadline": "2026-04-05",
+        "estimated_value": "₹1.2 Cr",
+        "location": "Bangalore",
+        "url": "https://tendersontime.com/tot-2026-005",
+        "scope_of_supply": [
+            {"item": "11 kV XLPE Power Cable - 3C x 240 sqmm", "quantity": "8000 m"},
+            {"item": "Control Cable 24 Core - 1.5 sqmm", "quantity": "5000 m"}
+        ],
+        "technical_specs": {
+            "voltage_grade": "11 kV",
+            "insulation": "XLPE",
+            "conductor": "Copper, Class 2 stranded",
+            "standards": ["IS 7098 Part 1", "IEC 60502-1"]
+        },
+        "testing_requirements": [
+            "Type Test as per IS 7098",
+            "Factory Acceptance Test (FAT)",
+            "Site Acceptance Test (SAT)",
+            "High Voltage Test"
+        ]
+    }
+]

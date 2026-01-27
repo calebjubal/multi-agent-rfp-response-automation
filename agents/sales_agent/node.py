@@ -8,43 +8,42 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from state import AgentState, WorkflowStep, NodeName
-from sales_agent.tools import scan_rfps_tool, qualify_rfp_tool, prioritize_rfps_tool
+from sales_agent.tools import scan_rfp_websites, get_rfp_details, qualify_rfp_tool, prioritize_rfps_tool, SAMPLE_RFPS
 from llm_config import get_shared_llm
 
-SALES_AGENT_SYSTEM_PROMPT = """You are an expert Sales Agent for a B2B electrical cable manufacturing company in India.
+SALES_AGENT_SYSTEM_PROMPT = """You are a Sales Agent specialized in RFP (Request for Proposal) analysis for electrical cable manufacturing.
 
+**Your Responsibilities:**
+- Scan and identify RFP documents from various sources
+- Extract key requirements, specifications, and deadlines
+- Summarize client needs and project scope
+- Identify submission requirements and evaluation criteria
+- Flag urgent deadlines and important compliance requirements
+- Qualify RFPs based on business criteria (value, timeline, location)
+- Prioritize opportunities by strategic fit
 
-**Your Role**:
-Help users find and evaluate RFP opportunities from tendersontime.com database.
+**Qualification Criteria:**
+- Tender value: ₹10 lakhs - ₹50 crores (optimal range)
+- Minimum days remaining: 7+ days (realistic bid preparation)
+- Technical capability match: Must align with our product portfolio
+- Location preference: Areas where we have competitive advantage
 
-**Available Tools**:
-1. `scan_rfps_tool` - Search RFPs by keywords and date range
-2. `qualify_rfp_tool` - Evaluate RFP against business criteria  
-3. `prioritize_rfps_tool` - Rank RFPs by priority score
+**Output Format:**
+Present a structured summary containing:
+- Client Name
+- Project Title  
+- Key Requirements (bulleted list)
+- Technical Specifications Needed
+- Submission Deadline
+- Budget Range
+- Priority Score (based on value, urgency, and fit)
+- Compliance Requirements
 
-**Workflow**:
-1. When user asks for RFPs, extract relevant keywords (products, specs, locations, project types)
-2. Use `scan_rfps_tool` to search (typically 90 days ahead)
-3. Qualify results using `qualify_rfp_tool` with smart criteria:
-   - Min tender value: ₹10 lakhs - ₹50 crores (sweet spot)
-   - Preferred locations: where we're competitive
-   - Min days remaining: 7-21 days (realistic bid prep time)
-4. Use `prioritize_rfps_tool` to get top 5 opportunities
-5. Present results in clean markdown format with:
-   - Brief context (scanned → qualified → top 5)
-   - Clear listing of each RFP (title, organization, value, deadline, location)
-   - Call-to-action: ask user to select RFP number for detailed analysis
-
-**Output Format**:
-- Use markdown formatting (headers, bold, lists)
-- Be professional but conversational
-- Keep it concise and actionable
-- Include RFP numbers for easy reference
-
-**Important**:
-- Think through the criteria logically based on user's request
-- Adjust qualification criteria if user specifies preferences
-- If no RFPs found, suggest alternative search terms
+**Communication Style:**
+- Professional and concise
+- Use markdown formatting (headers, bold, tables)
+- Actionable insights with clear next steps
+- Ask user to select RFP number for detailed technical analysis
 """
 
 
@@ -56,66 +55,57 @@ def sales_agent_node(state: AgentState) -> Dict[str, Any]:
     llm = get_shared_llm()
 
     try:
-        keywords = ["cable", "wire", "electrical", "xlpe", "transmission", "power"]
-        print(f"🔍 Scanning RFPs with keywords: {keywords}")
-        scanned_rfps = scan_rfps_tool.invoke({"keywords": keywords, "days_ahead": 90})
-        print(f"Found {len(scanned_rfps)} RFPs")
+        print("🔍 Scanning RFPs...")
+        scan_result = scan_rfp_websites.invoke({"urls": "all"})
+        print(f"Scan complete: {len(SAMPLE_RFPS)} RFPs in database")
 
-        if not scanned_rfps:
-            return {
-                "messages": [AIMessage(content="No RFPs found matching your criteria. Try different search terms.")],
-                "next_node": NodeName.END,
-                "current_step": WorkflowStep.COMPLETE
-            }
-
-        criteria = {
-            "min_tender_value": 1000000,
-            "min_days_remaining": 7,
-            "preferred_locations": []
-        }
-
-        qualifications = []
-        for rfp in scanned_rfps:
-            qual = qualify_rfp_tool.invoke({"rfp": rfp, "criteria": criteria})
-            qualifications.append(qual)
-
-        top_rfps = prioritize_rfps_tool.invoke({
-            "rfps": scanned_rfps,
-            "qualifications": qualifications,
-            "top_n": 5
-        })
-
-        if not top_rfps:
-            return {
-                "messages": [AIMessage(content="No RFPs qualified based on criteria. Try adjusting your requirements.")],
-                "next_node": NodeName.END,
-                "current_step": WorkflowStep.COMPLETE
-            }
-
-        rfp_data = json.dumps(top_rfps, indent=2, default=str)
-        messages = [SystemMessage(content=SALES_AGENT_SYSTEM_PROMPT)] + list(state["messages"])
-
-        format_prompt = f"""
-Scanned: {len(scanned_rfps)} RFPs | Qualified: {len([q for q in qualifications if q.get('qualified')])} | Top: {len(top_rfps)}
-
-Data:
-```json
-{rfp_data}
-```
-
-Present these RFPs professionally. Include RFP ID, title, organization, value, deadline, location, and score.
-Ask user to select an RFP number for detailed technical analysis.
-"""
-
-        print("🤖 Calling LLM to format results...")
-        response = llm.invoke(messages + [HumanMessage(content=format_prompt)])
+        # Filter and qualify RFPs
+        qualified_rfps = []
+        for rfp in SAMPLE_RFPS:
+            if qualify_rfp_tool(rfp):
+                qualified_rfps.append(rfp)
         
+        print(f"✅ Qualified: {len(qualified_rfps)} RFPs")
+
+        if not qualified_rfps:
+            return {
+                "messages": [AIMessage(content="No RFPs found matching our qualification criteria. Try adjusting requirements.")],
+                "next_node": NodeName.END,
+                "current_step": WorkflowStep.COMPLETE
+            }
+
+        # Prioritize top 5
+        top_rfps = prioritize_rfps_tool(qualified_rfps)
+        print(f"📊 Prioritized top {len(top_rfps)} RFPs")
+
+        # Format results using LLM
+        rfp_summary = f"""
+## RFP Scan Results
+
+**Scanned:** {len(SAMPLE_RFPS)} RFPs
+**Qualified:** {len(qualified_rfps)} RFPs  
+**Top Opportunities:** {len(top_rfps)} RFPs
+
+### Top {len(top_rfps)} Prioritized RFPs:
+
+"""
+        for i, rfp in enumerate(top_rfps, 1):
+            rfp_summary += f"\n**{i}. {rfp['title']}**\n"
+            rfp_summary += f"- **RFP ID:** {rfp['id']}\n"
+            rfp_summary += f"- **Client:** {rfp['client']}\n"
+            rfp_summary += f"- **Value:** {rfp['estimated_value']}\n"
+            rfp_summary += f"- **Deadline:** {rfp['submission_deadline']}\n"
+            rfp_summary += f"- **Priority Score:** {rfp.get('priority_score', 'N/A')}/100\n"
+
+        rfp_summary += "\n\n**Next Step:** Please reply with the RFP number (1-{}) you'd like to analyze in detail.\n".format(len(top_rfps))
+        rfp_summary += "_Example: '1' or 'Analyze RFP 1'_"
+
         print(f"✅ Sales agent complete. Top {len(top_rfps)} RFPs identified")
         print(f"🔄 Routing to: {NodeName.END} (waiting for user selection)")
         print("="*60 + "\n")
 
         return {
-            "messages": [AIMessage(content=response.content)],
+            "messages": [AIMessage(content=rfp_summary)],
             "rfps_identified": top_rfps,
             "current_step": WorkflowStep.WAITING_USER,
             "next_node": NodeName.END

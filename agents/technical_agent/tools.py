@@ -1,197 +1,349 @@
-import json
+from langchain.tools import tool
+from typing import List, Dict
 import os
+import json
 import re
-from typing import Dict, Any, List, Optional
 
 
-def build_technical_prompt(selected_rfp: dict) -> str:
-    """Build the technical analysis prompt for the selected RFP."""
-    rfp_data = json.dumps(selected_rfp, indent=2, default=str)
-
-    return f"""
-Analyze this RFP technically:
-
-```json
-{rfp_data}
-```
-
-Provide:
-1. Technical requirements summary
-2. Key specifications needed
-3. Compliance requirements
-4. Delivery feasibility
-5. Risk assessment
-6. Recommendation (bid / no-bid / need more info)
-"""
-
-
-def load_oem_catalog() -> List[Dict[str, Any]]:
-    """Load OEM catalog from JSON."""
-    possible_paths = [
-        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data", "catalog.json"),
-        os.path.join(os.getcwd(), "data", "catalog.json"),
-        "data/catalog.json",
-    ]
-
-    for json_path in possible_paths:
-        try:
-            with open(json_path, "r") as f:
-                return json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            continue
-
+def load_oem_catalog():
+    catalog_path = os.path.join(os.path.dirname(__file__), '../../data/catalog.json')
+    if os.path.exists(catalog_path):
+        with open(catalog_path, 'r') as f:
+            return json.load(f)
     return []
 
 
-def extract_requirements(text: str) -> Dict[str, Any]:
-    """Extract basic cable requirements from free text."""
-    text_lower = text.lower()
+OEM_PRODUCT_CATALOG = load_oem_catalog()
 
-    voltage = None
-    voltage_match = re.search(r"(\d+(\.\d+)?)\s*kv", text_lower)
-    if voltage_match:
-        voltage = f"{voltage_match.group(1)} kV"
 
-    conductor = None
-    if "copper" in text_lower:
-        conductor = "Copper"
-    elif "aluminium" in text_lower or "aluminum" in text_lower:
-        conductor = "Aluminum"
+@tool("search_product_catalog")
+def search_product_catalog(query: str) -> str:
+    """
+    Search the OEM product catalog for matching products.
+    Input: Search query (e.g., 'XLPE 3C 120 sqmm' or 'control cable 16 core')
+    """
+    query_lower = query.lower()
+    matches = []
+    
+    for product in OEM_PRODUCT_CATALOG:
+        name_match = query_lower in product["name"].lower()
+        category_match = query_lower in product["category"].lower()
+        
+        specs_match = False
+        for key, value in product["specs"].items():
+            if isinstance(value, str) and query_lower in value.lower():
+                specs_match = True
+            elif isinstance(value, list):
+                for v in value:
+                    if query_lower in str(v).lower():
+                        specs_match = True
+        
+        if name_match or category_match or specs_match:
+            matches.append(product)
+    
+    if not matches:
+        return f"No products found matching '{query}'"
+    
+    result = f"Found {len(matches)} products matching '{query}':\n\n"
+    for p in matches:
+        result += f"**SKU: {p['sku']}**\n"
+        result += f"- Name: {p['name']}\n"
+        result += f"- Category: {p['category']}\n"
+        result += f"- Base Price: ₹{p['base_price_per_meter']}/m\n"
+        result += f"- Key Specs: {json.dumps(p['specs'], indent=2)}\n\n"
+    
+    return result
 
-    size = None
-    size_match = re.search(r"(\d+)\s*(sq\.?mm|mm2|mm\^2)", text_lower)
-    if size_match:
-        size = f"{size_match.group(1)} sq.mm"
 
-    insulation = None
-    if "xlpe" in text_lower:
-        insulation = "XLPE"
-    elif "pvc" in text_lower:
-        insulation = "PVC"
-    elif "fr" in text_lower or "fr-lsh" in text_lower or "lszh" in text_lower:
-        insulation = "FR"
-
-    cores = None
-    cores_match = re.search(r"(\d+)\s*core", text_lower)
-    if cores_match:
-        cores = int(cores_match.group(1))
-    elif "single core" in text_lower:
-        cores = 1
-    elif "three core" in text_lower or "three-core" in text_lower:
-        cores = 3
-
-    armour = None
-    if "armour" in text_lower or "armored" in text_lower or "armoured" in text_lower:
-        if "steel tape" in text_lower:
-            armour = "Steel Tape"
-        elif "swa" in text_lower:
-            armour = "SWA"
+@tool("get_product_details")
+def get_product_details(sku: str) -> str:
+    """
+    Get detailed specifications for a specific product SKU.
+    Input: Product SKU (e.g., 'PWR-XLPE-3C120-1.1')
+    """
+    product = next((p for p in OEM_PRODUCT_CATALOG if p["sku"] == sku), None)
+    
+    if not product:
+        return f"Product with SKU '{sku}' not found."
+    
+    result = f"# Product Details: {product['sku']}\n\n"
+    result += f"**Name:** {product['name']}\n"
+    result += f"**Category:** {product['category']}\n"
+    result += f"**Base Price:** ₹{product['base_price_per_meter']}/meter\n\n"
+    
+    result += "## Technical Specifications\n"
+    for key, value in product["specs"].items():
+        if isinstance(value, list):
+            result += f"- **{key.replace('_', ' ').title()}:** {', '.join(map(str, value))}\n"
         else:
-            armour = "GI Wire"
+            result += f"- **{key.replace('_', ' ').title()}:** {value}\n"
+    
+    return result
 
-    cable_type = None
-    if insulation:
-        cable_type = insulation
 
-    application = None
-    if "underground" in text_lower:
-        application = "Underground"
-    elif "overhead" in text_lower:
-        application = "Overhead"
-
-    return {
-        "voltage_rating": voltage,
-        "conductor": conductor,
-        "size": size,
-        "cores": cores,
-        "insulation": insulation,
-        "armour": armour,
-        "cable_type": cable_type,
-        "application": application,
+@tool("match_rfp_requirement_to_products")
+def match_rfp_requirement_to_products(rfp_requirement: str) -> str:
+    """
+    Match a single RFP product requirement to top 3 OEM products with spec match percentage.
+    Uses 8-parameter equal-weight scoring: voltage, conductor, size, cores, insulation, armour, cable_type, application.
+    Input: RFP requirement description (e.g., '1.1 kV XLPE Power Cable - 3C x 120 sqmm')
+    """
+    req_lower = rfp_requirement.lower()
+    matches = []
+    
+    # Extract required specs from requirement string
+    req_specs = {
+        "voltage": None,
+        "insulation": None,
+        "cores": None,
+        "size": None,
+        "conductor": None,
+        "armour": None,
+        "cable_type": None,
+        "application": None
     }
+    
+    # Voltage extraction
+    if "11 kv" in req_lower or "11kv" in req_lower:
+        req_specs["voltage"] = "11 kV"
+    elif "1.1 kv" in req_lower or "1.1kv" in req_lower:
+        req_specs["voltage"] = "1.1 kV"
+    elif "450/750" in req_lower:
+        req_specs["voltage"] = "450/750 V"
+    elif "300/500" in req_lower:
+        req_specs["voltage"] = "300/500 V"
+    
+    # Insulation extraction
+    for ins in ["xlpe", "pvc", "fr-lsh", "rubber", "pe"]:
+        if ins in req_lower:
+            req_specs["insulation"] = ins.upper()
+    
+    # Cores extraction
+    core_match = re.search(r'(\d+(?:\.\d+)?)\s*c(?:ore)?', req_lower)
+    if core_match:
+        cores_val = core_match.group(1)
+        if '.' in cores_val:
+            req_specs["cores"] = float(cores_val)
+        else:
+            req_specs["cores"] = int(cores_val)
+    
+    # Size extraction
+    size_match = re.search(r'(\d+(?:\.\d+)?)\s*sqmm', req_lower)
+    if size_match:
+        req_specs["size"] = float(size_match.group(1))
+    
+    # Conductor extraction
+    if "copper" in req_lower:
+        req_specs["conductor"] = "copper"
+    elif "aluminium" in req_lower or "aluminum" in req_lower:
+        req_specs["conductor"] = "aluminium"
+    
+    # Armour extraction
+    if "armour" in req_lower or "armored" in req_lower:
+        req_specs["armour"] = True
+    
+    # Cable type extraction
+    if "power" in req_lower:
+        req_specs["cable_type"] = "power"
+    elif "control" in req_lower:
+        req_specs["cable_type"] = "control"
+    elif "instrumentation" in req_lower:
+        req_specs["cable_type"] = "instrumentation"
+    elif "flexible" in req_lower:
+        req_specs["cable_type"] = "flexible"
+    
+    # Application extraction
+    if "underground" in req_lower:
+        req_specs["application"] = "underground"
+    elif "overhead" in req_lower:
+        req_specs["application"] = "overhead"
+    
+    # Score each product (8 parameters, equal weight)
+    for product in OEM_PRODUCT_CATALOG:
+        score = 0
+        total_criteria = 0
+        match_details = []
+        specs = product["specs"]
+        
+        # 1. Voltage (1/8 = 12.5%)
+        if req_specs["voltage"]:
+            total_criteria += 1
+            if specs.get("voltage_grade") == req_specs["voltage"]:
+                score += 1
+                match_details.append("✓ Voltage")
+            else:
+                match_details.append("✗ Voltage")
+        
+        # 2. Insulation (1/8 = 12.5%)
+        if req_specs["insulation"]:
+            total_criteria += 1
+            if req_specs["insulation"].lower() in specs.get("insulation", "").lower():
+                score += 1
+                match_details.append("✓ Insulation")
+            else:
+                match_details.append("✗ Insulation")
+        
+        # 3. Cores (1/8 = 12.5%)
+        if req_specs["cores"]:
+            total_criteria += 1
+            product_cores = specs.get("cores", 0)
+            if product_cores == req_specs["cores"]:
+                score += 1
+                match_details.append("✓ Cores")
+            elif product_cores and abs(product_cores - req_specs["cores"]) <= 2:
+                score += 0.5
+                match_details.append("~ Cores (close)")
+            else:
+                match_details.append("✗ Cores")
+        
+        # 4. Size (1/8 = 12.5%)
+        if req_specs["size"]:
+            total_criteria += 1
+            product_size = specs.get("conductor_size_sqmm", 0)
+            if product_size == req_specs["size"]:
+                score += 1
+                match_details.append("✓ Size")
+            elif product_size and abs(product_size - req_specs["size"]) / req_specs["size"] <= 0.25:
+                score += 0.5
+                match_details.append("~ Size (close)")
+            else:
+                match_details.append("✗ Size")
+        
+        # 5. Conductor (1/8 = 12.5%)
+        if req_specs["conductor"]:
+            total_criteria += 1
+            if req_specs["conductor"].lower() in specs.get("conductor_material", "").lower():
+                score += 1
+                match_details.append("✓ Conductor")
+            else:
+                match_details.append("✗ Conductor")
+        
+        # 6. Armour (1/8 = 12.5%)
+        if req_specs["armour"]:
+            total_criteria += 1
+            if "armour" in specs or "armored" in product["category"].lower():
+                score += 1
+                match_details.append("✓ Armour")
+            else:
+                match_details.append("✗ Armour")
+        
+        # 7. Cable Type (1/8 = 12.5%)
+        if req_specs["cable_type"]:
+            total_criteria += 1
+            if req_specs["cable_type"].lower() in product["category"].lower():
+                score += 1
+                match_details.append("✓ Cable Type")
+            else:
+                match_details.append("✗ Cable Type")
+        
+        # 8. Application (1/8 = 12.5%)
+        if req_specs["application"]:
+            total_criteria += 1
+            if specs.get("application") and req_specs["application"].lower() in specs.get("application", "").lower():
+                score += 1
+                match_details.append("✓ Application")
+            else:
+                match_details.append("✗ Application")
+        
+        # Calculate percentage
+        if total_criteria > 0:
+            match_percent = (score / total_criteria) * 100
+            if match_percent > 0:
+                matches.append({
+                    "sku": product["sku"],
+                    "name": product["name"],
+                    "match_percent": match_percent,
+                    "match_details": match_details,
+                    "price": product["base_price_per_meter"],
+                    "specs": specs
+                })
+    
+    # Sort and get top 3
+    matches.sort(key=lambda x: x["match_percent"], reverse=True)
+    top_matches = matches[:3]
+    
+    if not top_matches:
+        return f"No matching products found for: {rfp_requirement}"
+    
+    result = f"## Top 3 OEM Product Matches for: {rfp_requirement}\n\n"
+    result += "| Rank | SKU | Product Name | Spec Match | Price/m | Match Details |\n"
+    result += "|------|-----|--------------|------------|---------|---------------|\n"
+    
+    for i, m in enumerate(top_matches, 1):
+        details = ", ".join(m["match_details"])
+        result += f"| {i} | {m['sku']} | {m['name']} | {m['match_percent']:.0f}% | ₹{m['price']} | {details} |\n"
+    
+    return result
 
 
-SPEC_FIELDS = [
-    "voltage_rating",
-    "conductor",
-    "size",
-    "cores",
-    "insulation",
-    "armour",
-    "cable_type",
-    "application",
-]
+@tool("generate_product_comparison_table")
+def generate_product_comparison_table(rfp_requirement: str, sku_list: str) -> str:
+    """
+    Generate a detailed comparison table of RFP specs vs OEM product specs.
+    Input: rfp_requirement - the RFP requirement description
+           sku_list - comma-separated list of SKUs to compare (e.g., 'SKU1,SKU2,SKU3')
+    """
+    skus = [s.strip() for s in sku_list.split(",")]
+    products = [p for p in OEM_PRODUCT_CATALOG if p["sku"] in skus]
+    
+    if not products:
+        return "No valid SKUs provided for comparison."
+    
+    result = f"## Specification Comparison: {rfp_requirement}\n\n"
+    
+    # Collect all unique spec keys
+    all_specs = set()
+    for p in products:
+        all_specs.update(p["specs"].keys())
+    
+    # Build comparison table
+    result += "| Specification | RFP Requirement |"
+    for p in products:
+        result += f" {p['sku']} |"
+    result += "\n"
+    
+    result += "|---------------|-----------------|"
+    for _ in products:
+        result += "------------|"
+    result += "\n"
+    
+    for spec in sorted(all_specs):
+        result += f"| {spec.replace('_', ' ').title()} | - |"
+        for p in products:
+            value = p["specs"].get(spec, "N/A")
+            if isinstance(value, list):
+                value = ", ".join(map(str, value))
+            result += f" {value} |"
+        result += "\n"
+    
+    return result
 
 
-def normalize_value(value: Any) -> Optional[str]:
-    if value is None:
-        return None
-    if isinstance(value, (int, float)):
-        return str(value)
-    return str(value).strip().lower()
+@tool("list_all_products")
+def list_all_products() -> str:
+    """
+    List all available products in the OEM catalog with basic info.
+    """
+    result = "# OEM Product Catalog\n\n"
+    result += "| SKU | Product Name | Category | Base Price |\n"
+    result += "|-----|--------------|----------|------------|\n"
+    
+    for p in OEM_PRODUCT_CATALOG:
+        result += f"| {p['sku']} | {p['name']} | {p['category']} | ₹{p['base_price_per_meter']}/m |\n"
+    
+    return result
 
 
-def derive_product_field(specs: Dict[str, Any], field: str) -> Any:
-    if field in specs:
-        return specs.get(field)
-
-    if field == "cable_type":
-        return specs.get("insulation")
-    if field == "application":
-        return None
-    return None
-
-
-def score_catalog_product(product: Dict[str, Any], requirements: Dict[str, Any]) -> Dict[str, Any]:
-    """Score a catalog product against extracted requirements (8 parameters, equal weight)."""
-    specs = product.get("specifications", {})
-    score = 0
-    matched = {}
-    comparisons = []
-
-    for field in SPEC_FIELDS:
-        req_value = requirements.get(field)
-        spec_value = derive_product_field(specs, field)
-        is_match = normalize_value(req_value) == normalize_value(spec_value) if req_value else False
-
-        if is_match:
-            score += 1
-            matched[field] = spec_value
-
-        comparisons.append({
-            "field": field,
-            "requirement": req_value,
-            "product": spec_value,
-            "match": is_match,
-        })
-
-    match_percent = round((score / len(SPEC_FIELDS)) * 100, 1)
-
-    return {
-        "sku": product.get("sku"),
-        "product_name": product.get("product_name"),
-        "price_per_km": product.get("price_per_km"),
-        "specifications": specs,
-        "match_score": match_percent,
-        "matched_fields": matched,
-        "comparison": comparisons,
-    }
-
-
-def match_oem_products(catalog: List[Dict[str, Any]], requirements: Dict[str, Any], top_n: int = 3) -> List[Dict[str, Any]]:
-    """Return top N OEM products by match score."""
-    scored = [score_catalog_product(product, requirements) for product in catalog]
-    scored.sort(key=lambda x: x["match_score"], reverse=True)
-    return scored[:top_n]
-
-
-def build_comparison_table(recommendations: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Build a comparison table across top recommendations."""
-    rows = []
-    for field in SPEC_FIELDS:
-        row = {"field": field}
-        for product in recommendations:
-            row[product.get("sku", "unknown")] = product.get("specifications", {}).get(field) or \
-                derive_product_field(product.get("specifications", {}), field)
-        rows.append(row)
-    return rows
+def build_technical_prompt(rfp_data: dict, top_matches: List[dict]) -> str:
+    """Helper to build technical analysis prompt"""
+    prompt = f"# Technical Analysis for RFP: {rfp_data.get('id', 'N/A')}\n\n"
+    prompt += f"**Project:** {rfp_data.get('title', 'N/A')}\n"
+    prompt += f"**Client:** {rfp_data.get('client', 'N/A')}\n\n"
+    
+    prompt += "## Product Matches Found:\n\n"
+    for i, match in enumerate(top_matches, 1):
+        prompt += f"{i}. **{match['sku']}** - {match['name']}\n"
+        prompt += f"   - Match Score: {match['match_percent']:.0f}%\n"
+        prompt += f"   - Price: ₹{match['price']}/meter\n\n"
+    
+    return prompt

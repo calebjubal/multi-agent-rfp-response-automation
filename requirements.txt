@@ -6,7 +6,7 @@ python-multipart==0.0.6
 
 # LLM Integration
 langchain==0.1.0
-langchain-groq==0.0.1
+langchain-openai==0.0.5
 langchain-community==0.0.10
 langgraph==0.0.26
 

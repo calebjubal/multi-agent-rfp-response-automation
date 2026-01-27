@@ -9,30 +9,56 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from state import AgentState, WorkflowStep, NodeName
 from llm_config import get_shared_llm
 from technical_agent.tools import (
-    build_technical_prompt,
+    match_rfp_requirement_to_products,
     load_oem_catalog,
-    extract_requirements,
-    match_oem_products,
-    build_comparison_table,
+    OEM_PRODUCT_CATALOG,
 )
 
 
-TECHNICAL_AGENT_PROMPT = """You are a Technical Analysis Agent for a B2B electrical cable manufacturing company.
+def get_rfp_id(rfp: dict) -> str:
+    """Helper to get RFP ID (supports both 'id' and 'rfp_id' fields)"""
+    return rfp.get("id") or rfp.get("rfp_id", "")
 
-**Your Role**:
-Analyze selected RFPs and provide technical assessment.
 
-**Analysis Areas**:
-1. Technical Requirements - voltage ratings, cable types, specifications
-2. Compliance Check - standards, certifications needed
-3. Capacity Assessment - can we deliver the required quantity/timeline
-4. Risk Factors - technical challenges, special requirements
+TECHNICAL_AGENT_PROMPT = """You are a Technical Agent specialized in product specification matching for electrical cables.
 
-**Output Format**:
-- Use markdown formatting
-- Be specific about technical details
-- Highlight any concerns or advantages
-- Recommend next steps
+**Your Responsibilities:**
+- Match RFP requirements with available product SKUs from the OEM catalog
+- Analyze technical specifications (voltage, size, material, certifications)
+- Recommend best-fit products with match confidence scores
+- Identify gaps where no suitable product exists
+- Suggest alternatives when exact matches aren't available
+
+**Product Categories You Handle:**
+- Power Cables (XLPE, PVC, Armoured)
+- Control Cables (Multi-core, Shielded)
+- Instrumentation Cables
+- Fire Retardant Cables (FR-LSH)
+- Specialty Cables (Flexible, Welding, Earthing)
+
+**Matching Criteria (8 Parameters - Equal Weight):**
+1. Voltage Grade (11 kV, 1.1 kV, 450/750 V, etc.)
+2. Conductor Material (Copper, Aluminium)
+3. Conductor Size (sqmm)
+4. Number of Cores
+5. Insulation Type (XLPE, PVC, FR-LSH, Rubber)
+6. Armour (if required)
+7. Cable Type (Power, Control, Instrumentation, etc.)
+8. Application (Underground, Overhead, Industrial)
+
+**Output Format:**
+Present a structured matching report containing:
+- **RFP Item** | **Matched SKU** | **Product Name** | **Match Score (%)** | **Notes**
+- Detailed comparison table showing RFP specs vs Product specs
+- Unmatched requirements (if any)
+- Recommended alternatives
+- Technical compliance notes
+
+**Communication Style:**
+- Technical precision with clear explanations
+- Use tables for spec comparisons
+- Highlight match confidence and gaps
+- Recommend top 3 alternatives per requirement
 """
 
 
@@ -45,7 +71,7 @@ def technical_agent_node(state: AgentState) -> Dict[str, Any]:
     llm = get_shared_llm()
     selected_rfp = state.get("selected_rfp")
     
-    print(f"Selected RFP: {selected_rfp.get('rfp_id') if selected_rfp else 'None'}")
+    print(f"Selected RFP: {get_rfp_id(selected_rfp) if selected_rfp else 'None'}")
 
     if not selected_rfp:
         print("❌ No RFP selected!")
@@ -56,46 +82,81 @@ def technical_agent_node(state: AgentState) -> Dict[str, Any]:
         }
 
     try:
-        print("📋 Building technical prompt...")
-        analysis_prompt = build_technical_prompt(selected_rfp)
+        print("📋 Extracting requirements and matching products...")
+        
+        # Get scope of supply from RFP
+        scope_of_supply = selected_rfp.get("scope_of_supply", [])
+        
+        if not scope_of_supply:
+            print("⚠️ No scope of supply found in RFP")
+            return {
+                "messages": [AIMessage(content="No product requirements found in selected RFP.")],
+                "next_node": NodeName.END,
+                "current_step": WorkflowStep.ERROR
+            }
+        
+        # Match each requirement to products
+        all_matches = []
+        products_for_pricing = []
+        matching_results_text = "## Product Matching Results\n\n"
+        
+        for item in scope_of_supply:
+            requirement = item.get("item", "")
+            quantity_str = item.get("quantity", "")
+            
+            print(f"🔍 Matching: {requirement}")
+            
+            match_result = match_rfp_requirement_to_products.invoke({"rfp_requirement": requirement})
+            matching_results_text += f"### Requirement: {requirement} (Qty: {quantity_str})\n\n"
+            matching_results_text += match_result + "\n\n"
+            
+            all_matches.append({
+                "requirement": requirement,
+                "quantity": quantity_str,
+                "matches": match_result
+            })
+            
+            import re
+            qty_num = int(re.sub(r'[^\d]', '', quantity_str)) if quantity_str else 1000
+            
+            sku_match = re.search(r'\|\s*1\s*\|\s*([A-Z0-9\-\.]+)', match_result)
+            if sku_match:
+                top_sku = sku_match.group(1)
+                products_for_pricing.append({
+                    "sku": top_sku,
+                    "quantity": qty_num,
+                    "requirement": requirement
+                })
+                print(f"   → Top match: {top_sku} (qty: {qty_num})")
+        
+        # Build final analysis message
+        analysis_message = f"""# Technical Analysis for RFP: {get_rfp_id(selected_rfp)}
 
-        rfp_text = f"{selected_rfp.get('title', '')} {selected_rfp.get('description', '')}"
-        requirements = extract_requirements(rfp_text)
-        catalog = load_oem_catalog()
-        recommendations = match_oem_products(catalog, requirements, top_n=3) if catalog else []
-        comparison_table = build_comparison_table(recommendations) if recommendations else []
+**Project:** {selected_rfp.get('title', 'N/A')}
+**Client:** {selected_rfp.get('client', 'N/A')}
 
-        matching_context = f"""
-Extracted Requirements:
-{json.dumps(requirements, indent=2, default=str)}
+{matching_results_text}
 
-Top OEM Matches:
-{json.dumps(recommendations, indent=2, default=str)}
+## Summary
+- Total requirements analyzed: {len(scope_of_supply)}
+- OEM products in catalog: {len(OEM_PRODUCT_CATALOG)}
 
-Comparison Table:
-{json.dumps(comparison_table, indent=2, default=str)}
+**Next Step:** Proceeding to pricing analysis based on matched products.
 """
 
-        messages = [
-            SystemMessage(content=TECHNICAL_AGENT_PROMPT),
-            HumanMessage(content=f"{analysis_prompt}\n\n{matching_context}")
-        ]
-
-        print("🤖 Calling LLM for technical analysis...")
-        response = llm.invoke(messages)
-        
-        print(f"✅ Technical analysis complete. Response length: {len(response.content)} chars")
+        print(f"✅ Technical analysis complete. Matched {len(scope_of_supply)} requirements")
         print(f"🔄 Routing to: {NodeName.PRICING_AGENT}")
         print("="*60 + "\n")
 
         return {
-            "messages": [AIMessage(content=response.content)],
+            "messages": [AIMessage(content=analysis_message)],
             "technical_analysis": {
-                "rfp_id": selected_rfp.get("rfp_id"),
-                "analysis": response.content,
-                "requirements": requirements,
-                "recommended_products": recommendations,
-                "comparison_table": comparison_table
+                "rfp_id": get_rfp_id(selected_rfp),
+                "analysis": analysis_message,
+                "requirements": scope_of_supply,
+                "recommended_products": products_for_pricing,
+                "all_matches": all_matches,
+                "total_requirements": len(scope_of_supply)
             },
             "current_step": WorkflowStep.PRICING,
             "next_node": NodeName.PRICING_AGENT

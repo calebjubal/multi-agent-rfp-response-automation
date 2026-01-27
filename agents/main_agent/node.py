@@ -12,6 +12,44 @@ from utils import generate_pdf_report
 from main_agent.tools import extract_rfp_selection, is_scan_request, is_selection_request
 
 
+ORCHESTRATOR_PROMPT = """You are the Orchestrator Agent that coordinates the RFP response workflow.
+
+**Your Responsibilities:**
+- Coordinate the end-to-end RFP response process
+- Delegate tasks to specialized agents (Sales, Technical, Pricing)
+- Ensure all requirements are addressed
+- Compile the final RFP response document
+- Track progress and handle errors
+
+**Workflow Steps:**
+1. **Sales Agent** - Extract and summarize RFP requirements, qualify and prioritize opportunities
+2. **Technical Agent** - Match requirements with product SKUs, provide spec analysis
+3. **Pricing Agent** - Generate quotes for matched products with testing costs
+4. **Final Compilation** - Create cohesive response with all outputs
+
+**Final Response Format:**
+Compile all outputs into a professional RFP response containing:
+- **Executive Summary** - High-level overview and recommendation
+- **Requirements Analysis** - From Sales Agent (client needs, scope)
+- **Product Recommendations** - From Technical Agent (matched SKUs, specs)
+- **Commercial Quote** - From Pricing Agent (detailed pricing breakdown)
+- **Compliance Statement** - Standards and certifications met
+- **Delivery Timeline** - Expected lead times
+- **Next Steps** - Actions required from both parties
+
+**Communication Style:**
+- Professional and executive-level
+- Clear decision support
+- Risk-aware recommendations
+- Action-oriented conclusions
+"""
+
+
+def get_rfp_id(rfp: dict) -> str:
+    """Helper to get RFP ID (supports both 'id' and 'rfp_id' fields)"""
+    return rfp.get("id") or rfp.get("rfp_id", "")
+
+
 def main_agent_node(state: AgentState) -> Dict[str, Any]:
     """Routes user requests to appropriate agent."""
     print("\n" + "="*60)
@@ -26,7 +64,7 @@ def main_agent_node(state: AgentState) -> Dict[str, Any]:
     
     print(f"User message: {user_message[:100]}...")
     print(f"RFPs identified: {len(rfps_identified)}")
-    print(f"Selected RFP: {selected_rfp.get('rfp_id') if selected_rfp else 'None'}")
+    print(f"Selected RFP: {get_rfp_id(selected_rfp) if selected_rfp else 'None'}")
     print(f"Technical analysis: {'✓' if technical_analysis else '✗'}")
     print(f"Pricing analysis: {'✓' if pricing_analysis else '✗'}")
 
@@ -35,7 +73,7 @@ def main_agent_node(state: AgentState) -> Dict[str, Any]:
         try:
             llm = get_shared_llm()
             session_id = state.get("session_id", "default")
-            rfp_id = selected_rfp.get("rfp_id", "rfp")
+            rfp_id = get_rfp_id(selected_rfp) or "rfp"
 
             report_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data", "reports")
             report_filename = f"{session_id}_{rfp_id}.pdf".replace("/", "_")
@@ -46,7 +84,7 @@ def main_agent_node(state: AgentState) -> Dict[str, Any]:
             prompt = f"""
 You are the Main Orchestrator. Create a brief executive summary for this RFP response.
 
-RFP: {selected_rfp.get('rfp_id')} - {selected_rfp.get('title')}
+RFP: {get_rfp_id(selected_rfp)} - {selected_rfp.get('title')}
 Value: ₹{selected_rfp.get('value', 'N/A')}
 
 Key Points:
@@ -105,10 +143,10 @@ Provide a 2-3 sentence executive summary with a recommendation (proceed/review/d
         print(f"Selected ID: {selected_id}")
 
         if selected_id:
-            selected_rfp = next((r for r in rfps_identified if r.get("rfp_id") == selected_id), None)
+            selected_rfp = next((r for r in rfps_identified if (r.get("id") == selected_id or r.get("rfp_id") == selected_id)), None)
 
             if selected_rfp:
-                print(f"✅ RFP found: {selected_rfp.get('rfp_id')}")
+                print(f"✅ RFP found: {get_rfp_id(selected_rfp)}")
                 print(f"🔄 Routing to: {NodeName.TECHNICAL_AGENT}")
                 print("="*60 + "\n")
                 return {

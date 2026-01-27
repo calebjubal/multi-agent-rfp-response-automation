@@ -5,16 +5,19 @@ def extract_rfp_selection(message: str, rfps_identified: list) -> str:
     """Extract RFP ID from user selection message."""
     message_lower = message.lower()
 
+    def get_rfp_id(rfp):
+        return rfp.get("id") or rfp.get("rfp_id", "")
+
     for rfp in rfps_identified:
-        rfp_id = rfp.get("rfp_id", "")
-        if rfp_id.lower() in message_lower:
+        rfp_id = get_rfp_id(rfp)
+        if rfp_id and rfp_id.lower() in message_lower:
             return rfp_id
 
     numbers = re.findall(r"\b(\d+)\b", message)
     for num in numbers:
         idx = int(num) - 1
         if 0 <= idx < len(rfps_identified):
-            return rfps_identified[idx].get("rfp_id", "")
+            return get_rfp_id(rfps_identified[idx])
 
     selection_patterns = [
         r"select.*?(\d+)",
@@ -30,7 +33,7 @@ def extract_rfp_selection(message: str, rfps_identified: list) -> str:
         if match:
             idx = int(match.group(1)) - 1
             if 0 <= idx < len(rfps_identified):
-                return rfps_identified[idx].get("rfp_id", "")
+                return get_rfp_id(rfps_identified[idx])
 
     return ""
 

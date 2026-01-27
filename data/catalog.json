@@ -1,0 +1,226 @@
+[
+    {
+        "sku": "PWR-XLPE-3C120-1.1",
+        "name": "XLPE Power Cable 1.1kV 3C x 120 sqmm",
+        "category": "Power Cable",
+        "specs": {
+            "voltage_grade": "1.1 kV",
+            "cores": 3,
+            "conductor_size_sqmm": 120,
+            "insulation": "XLPE",
+            "conductor_material": "Copper",
+            "conductor_class": "Class 2 stranded",
+            "temperature_rating": "90°C",
+            "standards": ["IS 7098 Part 1", "IEC 60502-1"]
+        },
+        "base_price_per_meter": 485
+    },
+    {
+        "sku": "PWR-XLPE-3C240-1.1",
+        "name": "XLPE Power Cable 1.1kV 3C x 240 sqmm",
+        "category": "Power Cable",
+        "specs": {
+            "voltage_grade": "1.1 kV",
+            "cores": 3,
+            "conductor_size_sqmm": 240,
+            "insulation": "XLPE",
+            "conductor_material": "Copper",
+            "conductor_class": "Class 2 stranded",
+            "temperature_rating": "90°C",
+            "standards": ["IS 7098 Part 1", "IEC 60502-1"]
+        },
+        "base_price_per_meter": 890
+    },
+    {
+        "sku": "PWR-XLPE-3C150-1.1",
+        "name": "XLPE Power Cable 1.1kV 3C x 150 sqmm",
+        "category": "Power Cable",
+        "specs": {
+            "voltage_grade": "1.1 kV",
+            "cores": 3,
+            "conductor_size_sqmm": 150,
+            "insulation": "XLPE",
+            "conductor_material": "Copper",
+            "conductor_class": "Class 2 stranded",
+            "temperature_rating": "90°C",
+            "standards": ["IS 7098 Part 1"]
+        },
+        "base_price_per_meter": 580
+    },
+    {
+        "sku": "CTL-16C-1.5",
+        "name": "Control Cable 16 Core 1.5 sqmm",
+        "category": "Control Cable",
+        "specs": {
+            "voltage_grade": "1.1 kV",
+            "cores": 16,
+            "conductor_size_sqmm": 1.5,
+            "insulation": "PVC",
+            "conductor_material": "Copper",
+            "shielded": false,
+            "standards": ["IS 1554 Part 1"]
+        },
+        "base_price_per_meter": 320
+    },
+    {
+        "sku": "CTL-24C-1.5",
+        "name": "Control Cable 24 Core 1.5 sqmm",
+        "category": "Control Cable",
+        "specs": {
+            "voltage_grade": "1.1 kV",
+            "cores": 24,
+            "conductor_size_sqmm": 1.5,
+            "insulation": "PVC",
+            "conductor_material": "Copper",
+            "shielded": false,
+            "standards": ["IS 1554 Part 1"]
+        },
+        "base_price_per_meter": 445
+    },
+    {
+        "sku": "CTL-12C-1.5",
+        "name": "Control Cable 12 Core 1.5 sqmm",
+        "category": "Control Cable",
+        "specs": {
+            "voltage_grade": "1.1 kV",
+            "cores": 12,
+            "conductor_size_sqmm": 1.5,
+            "insulation": "PVC",
+            "conductor_material": "Copper",
+            "standards": ["IS 1554 Part 1"]
+        },
+        "base_price_per_meter": 280
+    },
+    {
+        "sku": "FR-LSH-4C6",
+        "name": "Fire Retardant FR-LSH Cable 4C x 6 sqmm",
+        "category": "Fire Retardant Cable",
+        "specs": {
+            "voltage_grade": "1.1 kV",
+            "cores": 4,
+            "conductor_size_sqmm": 6,
+            "insulation": "FR-LSH (Low Smoke Halogen Free)",
+            "conductor_material": "Copper",
+            "fire_rating": "IEC 60332-3",
+            "standards": ["IS 7098 Part 2", "IEC 60332"]
+        },
+        "base_price_per_meter": 195
+    },
+    {
+        "sku": "FR-LSH-4C4",
+        "name": "Fire Retardant FR-LSH Cable 4C x 4 sqmm",
+        "category": "Fire Retardant Cable",
+        "specs": {
+            "voltage_grade": "1.1 kV",
+            "cores": 4,
+            "conductor_size_sqmm": 4,
+            "insulation": "FR-LSH",
+            "conductor_material": "Copper",
+            "standards": ["IS 7098 Part 2"]
+        },
+        "base_price_per_meter": 165
+    },
+    {
+        "sku": "LT-XLPE-3.5C95",
+        "name": "LT XLPE Cable 3.5C x 95 sqmm",
+        "category": "Power Cable",
+        "specs": {
+            "voltage_grade": "1.1 kV",
+            "cores": 3.5,
+            "conductor_size_sqmm": 95,
+            "insulation": "XLPE",
+            "conductor_material": "Copper",
+            "standards": ["IS 7098 Part 1"]
+        },
+        "base_price_per_meter": 420
+    },
+    {
+        "sku": "ARM-4C16",
+        "name": "Armoured Cable 4C x 16 sqmm",
+        "category": "Armoured Cable",
+        "specs": {
+            "voltage_grade": "1.1 kV",
+            "cores": 4,
+            "conductor_size_sqmm": 16,
+            "insulation": "XLPE",
+            "armour": "Galvanized Steel Wire",
+            "conductor_material": "Copper",
+            "standards": ["IS 7098 Part 1", "IS 1554 Part 1"]
+        },
+        "base_price_per_meter": 285
+    },
+    {
+        "sku": "INST-2P1.5",
+        "name": "Instrumentation Cable 2 Pair x 1.5 sqmm",
+        "category": "Instrumentation Cable",
+        "specs": {
+            "voltage_grade": "300/500 V",
+            "pairs": 2,
+            "conductor_size_sqmm": 1.5,
+            "insulation": "PE/PVC",
+            "shielded": true,
+            "conductor_material": "Copper",
+            "standards": ["IS 1554 Part 1"]
+        },
+        "base_price_per_meter": 125
+    },
+    {
+        "sku": "FLEX-4C4",
+        "name": "Flexible Cable 4C x 4 sqmm",
+        "category": "Flexible Cable",
+        "specs": {
+            "voltage_grade": "450/750 V",
+            "cores": 4,
+            "conductor_size_sqmm": 4,
+            "insulation": "PVC",
+            "conductor_material": "Copper",
+            "conductor_class": "Class 5 flexible",
+            "standards": ["IS 694"]
+        },
+        "base_price_per_meter": 95
+    },
+    {
+        "sku": "WELD-70",
+        "name": "Welding Cable 70 sqmm",
+        "category": "Welding Cable",
+        "specs": {
+            "voltage_grade": "450/750 V",
+            "conductor_size_sqmm": 70,
+            "insulation": "Rubber",
+            "conductor_material": "Copper",
+            "conductor_class": "Class 5 flexible",
+            "standards": ["IS 9968 Part 1"]
+        },
+        "base_price_per_meter": 380
+    },
+    {
+        "sku": "EARTH-1C50",
+        "name": "Earthing Cable 1C x 50 sqmm",
+        "category": "Earthing Cable",
+        "specs": {
+            "cores": 1,
+            "conductor_size_sqmm": 50,
+            "insulation": "PVC",
+            "conductor_material": "Copper",
+            "color": "Green/Yellow",
+            "standards": ["IS 694"]
+        },
+        "base_price_per_meter": 210
+    },
+    {
+        "sku": "PWR-XLPE-3C240-11KV",
+        "name": "XLPE Power Cable 11kV 3C x 240 sqmm",
+        "category": "Power Cable",
+        "specs": {
+            "voltage_grade": "11 kV",
+            "cores": 3,
+            "conductor_size_sqmm": 240,
+            "insulation": "XLPE",
+            "conductor_material": "Copper",
+            "conductor_class": "Class 2 stranded",
+            "temperature_rating": "90°C",
+            "standards": ["IS 7098 Part 1", "IEC 60502-1"]
+        },
+        "base_price_per_meter": 1450
+    }
+]
