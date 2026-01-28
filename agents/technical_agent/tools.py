@@ -7,10 +7,13 @@ import re
 
 def load_oem_catalog():
     catalog_path = os.path.join(os.path.dirname(__file__), '../../data/catalog.json')
+    global OEM_PRODUCT_CATALOG
     if os.path.exists(catalog_path):
         with open(catalog_path, 'r') as f:
-            return json.load(f)
-    return []
+            OEM_PRODUCT_CATALOG = json.load(f)
+            return OEM_PRODUCT_CATALOG
+    OEM_PRODUCT_CATALOG = []
+    return OEM_PRODUCT_CATALOG
 
 
 OEM_PRODUCT_CATALOG = load_oem_catalog()

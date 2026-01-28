@@ -30,3 +30,18 @@ class RFPScanRequest(BaseModel):
 
 class AnalyzeRFPRequest(BaseModel):
     rfp_id: str
+
+class TestPricingEntry(BaseModel):
+    price: float
+    duration_days: Optional[int] = None
+
+class RFPEntry(BaseModel):
+    id: Optional[str] = None
+    title: str
+    client: str
+    submission_date: str
+    description: Optional[str] = ""
+    status: Optional[str] = "pending"
+    value: Optional[str] = "₹0"
+    match_score: Optional[float] = None
+    products: Optional[int] = 0

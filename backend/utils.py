@@ -12,6 +12,11 @@ def save_test_pricing(pricing_db: Dict[str, Any]) -> None:
     with open('data/test_pricing.json', 'w') as f:
         json.dump(pricing_db, f, indent=2)
 
+def save_rfps(rfps_db: List[Dict[str, Any]]) -> None:
+    os.makedirs('data', exist_ok=True)
+    with open('data/rfps.json', 'w') as f:
+        json.dump(rfps_db, f, indent=2)
+
 
 def generate_pdf_report(output_path: str, title: str, sections: list):
     """Generate a professional PDF report with proper text wrapping and formatting."""

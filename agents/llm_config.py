@@ -18,7 +18,7 @@ def get_shared_llm() -> ChatOpenAI:
         _llm_instance = ChatOpenAI(
             api_key=api_key,
             base_url="https://api.cerebras.ai/v1",
-            model=os.getenv('CEREBRAS_MODEL', 'llama-3.3-70b'),
+            model=os.getenv('CEREBRAS_MODEL', 'gpt-oss-120b'),
             temperature=float(os.getenv('LLM_TEMPERATURE', '0.7')),
             timeout=120,
             max_retries=2

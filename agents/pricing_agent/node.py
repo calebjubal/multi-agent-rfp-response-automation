@@ -118,7 +118,7 @@ def pricing_agent_node(state: AgentState) -> Dict[str, Any]:
         # Only include essential technical data - not the full analysis text
         prompt = f"""
 Selected RFP: {get_rfp_id(selected_rfp)} - {selected_rfp.get('title')}
-Value: ₹{selected_rfp.get('value', 'N/A')}
+Value: ₹{selected_rfp.get('estimated_value') or selected_rfp.get('value', 'N/A')}
 
 Recommended Products (from Technical Agent):
 {json.dumps(recommended_products, indent=2, default=str)}
@@ -152,7 +152,7 @@ Provide a concise pricing summary with key assumptions and next steps.
 
         return {
             "messages": [AIMessage(content=response.content)],
-            "pricing_analysis": {"rfp_id": selected_rfp.get("rfp_id"), "analysis": response.content, "inputs": pricing_summary},
+            "pricing_analysis": {"rfp_id": get_rfp_id(selected_rfp), "analysis": response.content, "inputs": pricing_summary},
             "current_step": WorkflowStep.COMPLETE,
             "next_node": NodeName.MAIN_AGENT
         }

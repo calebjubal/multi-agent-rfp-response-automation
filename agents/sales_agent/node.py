@@ -108,6 +108,7 @@ def sales_agent_node(state: AgentState) -> Dict[str, Any]:
             "messages": [AIMessage(content=rfp_summary)],
             "rfps_identified": top_rfps,
             "current_step": WorkflowStep.WAITING_USER,
+            "waiting_for_user": True,
             "next_node": NodeName.END
         }
 
