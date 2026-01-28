@@ -176,7 +176,7 @@ The solution employs a coordinated multi-agent architecture with **one orchestra
 | **Language** | Python 3.9+ | Core application development |
 | **Agent Framework** | LangGraph / CrewAI | Multi-agent orchestration |
 | **Memory Management** | Mem0 | Persistent agent memory and context |
-| **Web Interface** | Flask / Streamlit | User interface and dashboards |
+| **Web Interface** | Next.js / Flask / Streamlit | User interface and dashboards |
 | **Database** | PostgreSQL / SQLite | Data persistence |
 | **Document Processing** | PyPDF2, python-docx | RFP document parsing |
 | **API Integration** | FastAPI | RESTful API endpoints |
